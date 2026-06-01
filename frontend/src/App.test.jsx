@@ -7,5 +7,7 @@ describe('App scaffold', () => {
     render(<App />);
     expect(screen.getByRole('heading', { name: /AI Scientific Calculator/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/AI scientific calculator/i)).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /scientific/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Calculator keypad/i)).toBeInTheDocument();
   });
 });
