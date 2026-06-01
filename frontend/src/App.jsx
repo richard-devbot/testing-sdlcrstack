@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './styles.css';
+import { calculateExpression, requestAIAssist } from './services/api.js';
 
 const BASIC_KEYS = ['7','8','9','/','4','5','6','*','1','2','3','-','0','.','=','+'];
 const SCI_KEYS = ['sin(','cos(','tan(','log(','ln(','sqrt(','factorial(','pi','e','^','(',')'];
@@ -44,10 +45,10 @@ function AIAssistPanel({ aiPrompt, setAiPrompt, submitPrompt }) {
   </motion.section>;
 }
 
-function HistoryRail({ history }) {
+function HistoryRail({ history, recallHistory }) {
   return <aside className="history-rail" aria-label="Expression history">
     <h2>History</h2>
-    {history.length === 0 ? <p>No echoes in memory yet.</p> : history.map((item) => <button key={item.id}>{item.expression} = {item.result}</button>)}
+    {history.length === 0 ? <p>No echoes in memory yet.</p> : history.map((item) => <button key={item.id} onClick={() => recallHistory(item)}>{item.expression} = {item.result}</button>)}
   </aside>;
 }
 
@@ -57,12 +58,41 @@ export default function App() {
   const [result, setResult] = useState('');
   const [error, setError] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
-  const [history] = useState([]);
+  const [history, setHistory] = useState([]);
 
   const appendValue = (value) => { setError(''); setExpression((current) => current + value); };
   const clear = () => { setExpression(''); setResult(''); setError(''); };
-  const evaluateExpression = () => setResult(expression ? 'Ready for backend calculation' : 'Enter an expression');
-  const submitPrompt = () => setError(aiPrompt ? 'Neural uplink offline until API call is wired.' : 'Type a prompt first.');
+  const recallHistory = (item) => { setExpression(item.expression); setResult(item.result); setError(''); };
+  const evaluateExpression = async () => {
+    if (!expression) { setResult('Enter an expression'); return; }
+    try {
+      const payload = await calculateExpression(expression);
+      setResult(payload.formatted_result);
+      setHistory((items) => [{ id: `${Date.now()}`, expression, result: payload.formatted_result }, ...items].slice(0, 12));
+    } catch (err) { setError(err.message); }
+  };
+  const submitPrompt = async () => {
+    if (!aiPrompt) { setError('Type a prompt first.'); return; }
+    try {
+      const payload = await requestAIAssist(aiPrompt);
+      setExpression(payload.interpreted_expression);
+      setResult(payload.formatted_result);
+      setHistory((items) => [{ id: `${Date.now()}`, expression: payload.interpreted_expression, result: payload.formatted_result }, ...items].slice(0, 12));
+    } catch (err) { setError(err.message); }
+  };
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.target.tagName === 'TEXTAREA') return;
+      const key = event.key;
+      if (/^[0-9.+\-*/()^]$/.test(key)) appendValue(key);
+      if (key === 'Enter') { event.preventDefault(); evaluateExpression(); }
+      if (key === 'Backspace') setExpression((current) => current.slice(0, -1));
+      if (key === 'Escape') clear();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [expression]);
 
   return <main className="app-shell">
     <div className="neural-grid" />
@@ -75,7 +105,7 @@ export default function App() {
           {mode === 'ai-assist' && <AIAssistPanel aiPrompt={aiPrompt} setAiPrompt={setAiPrompt} submitPrompt={submitPrompt} />}
           <Keypad appendValue={appendValue} evaluateExpression={evaluateExpression} clear={clear} />
         </div>
-        <HistoryRail history={history} />
+        <HistoryRail history={history} recallHistory={recallHistory} />
       </div>
     </motion.section>
   </main>;
