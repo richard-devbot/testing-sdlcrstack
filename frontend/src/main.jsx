@@ -1,8 +1,5 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-
-function App() {
-  return <main><h1>AI Scientific Calculator</h1></main>;
-}
+import App from './App.jsx';
 
 createRoot(document.getElementById('root')).render(<App />);
