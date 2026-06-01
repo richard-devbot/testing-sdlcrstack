@@ -17,7 +17,8 @@ SAFE_LOCALS = {
     "π": pi,
     "e": E,
 }
-UNSAFE_PATTERNS = ["__", "import", "eval", "exec", "open", "read", "write", "os", "sys", "subprocess", "lambda", "globals", "locals", "[", "]", "{" , "}"]
+UNSAFE_PATTERNS = ["__", "[", "]", "{", "}"]
+UNSAFE_TOKENS = {"import", "eval", "exec", "open", "read", "write", "os", "sys", "subprocess", "lambda", "globals", "locals"}
 TOKEN_RE = re.compile(r"[A-Za-z_π]+")
 
 class MathEngine:
@@ -45,6 +46,8 @@ class MathEngine:
         if any(pattern in lowered for pattern in UNSAFE_PATTERNS):
             raise CalculatorError("UNSAFE_EXPRESSION")
         for token in TOKEN_RE.findall(expression):
+            if token in UNSAFE_TOKENS:
+                raise CalculatorError("UNSAFE_EXPRESSION")
             if token not in SAFE_LOCALS:
                 raise CalculatorError("UNSUPPORTED_FUNCTION")
 
